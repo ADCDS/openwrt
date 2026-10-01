@@ -622,7 +622,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  
  	switch (proto) {
  	case DSA_TAG_PROTO_RTL8_4:
-@@ -2936,6 +3422,26 @@ static int rtl8365mb_change_tag_protocol
+@@ -2936,6 +3429,26 @@ static int rtl8365mb_change_tag_protocol
  		cpu->format = RTL8365MB_CPU_FORMAT_8BYTES;
  		cpu->position = RTL8365MB_CPU_POS_BEFORE_CRC;
  		break;
@@ -649,7 +649,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  	/* The switch also supports a 4-byte format, similar to rtl4a but with
  	 * the same 0x04 8-bit version and probably 8-bit port source/dest.
  	 * There is no public doc about it. Not supported yet and it will probably
-@@ -2945,7 +3451,27 @@ static int rtl8365mb_change_tag_protocol
+@@ -2945,7 +3458,27 @@ static int rtl8365mb_change_tag_protocol
  		return -EPROTONOSUPPORT;
  	}
  
@@ -677,7 +677,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  }
  
  static int rtl8365mb_switch_init(struct realtek_priv *priv)
-@@ -3157,13 +3683,19 @@ static int rtl8365mb_setup(struct dsa_sw
+@@ -3157,13 +3690,19 @@ static int rtl8365mb_setup(struct dsa_sw
  	if (ret)
  		goto out_teardown_irq;
  
@@ -698,7 +698,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  	ds->max_num_bridges = FIELD_MAX(RTL8365MB_EFID_MASK);
  
  	ds->configure_vlan_while_not_filtering = true;
-@@ -3288,20 +3820,24 @@ static const struct dsa_switch_ops rtl83
+@@ -3288,20 +3827,24 @@ static const struct dsa_switch_ops rtl83
  	.setup = rtl8365mb_setup,
  	.teardown = rtl8365mb_teardown,
  	.phylink_get_caps = rtl8365mb_phylink_get_caps,

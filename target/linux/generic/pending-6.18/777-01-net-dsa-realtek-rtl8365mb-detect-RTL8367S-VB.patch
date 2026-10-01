@@ -48,7 +48,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
   *  - RTL8370MB
   *  - RTL8310SR
   *
-@@ -109,12 +110,14 @@
+@@ -110,12 +111,14 @@
  #include "rtl83xx.h"
  #include "rtl8365mb_l2.h"
  #include "rtl8365mb_vlan.h"
@@ -63,7 +63,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  /* Valid for the whole family except RTL8370B, which has 4160 entries.
   * RTL8370B is mentioned in vendor code but it might not even belong
   * to the same RTL8367C family.
-@@ -692,6 +695,7 @@ struct rtl8365mb_extint {
+@@ -693,6 +696,7 @@ struct rtl8365mb_extint {
   * @name: human-readable chip name
   * @chip_id: chip identifier
   * @chip_ver: chip silicon revision
@@ -71,7 +71,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
   * @extints: available external interfaces
   * @jam_table: chip-specific initialization jam table
   * @jam_size: size of the chip's jam table
-@@ -704,6 +708,7 @@ struct rtl8365mb_chip_info {
+@@ -705,6 +709,7 @@ struct rtl8365mb_chip_info {
  	const char *name;
  	u32 chip_id;
  	u32 chip_ver;
@@ -79,7 +79,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  	const struct rtl8365mb_extint extints[RTL8365MB_MAX_NUM_EXTINTS];
  	const struct rtl8365mb_jam_tbl_entry *jam_table;
  	size_t jam_size;
-@@ -716,6 +721,7 @@ static const struct rtl8365mb_chip_info
+@@ -717,6 +722,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8365MB-VC",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0040,
@@ -87,7 +87,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) },
-@@ -727,6 +733,7 @@ static const struct rtl8365mb_chip_info
+@@ -728,6 +734,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367S",
  		.chip_id = 0x6367,
  		.chip_ver = 0x00A0,
@@ -95,7 +95,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  		.extints = {
  			{ 6, 1, PHY_INTF(SGMII) | PHY_INTF(HSGMII) },
  			{ 7, 2, PHY_INTF(MII) | PHY_INTF(TMII) |
-@@ -739,6 +746,7 @@ static const struct rtl8365mb_chip_info
+@@ -740,6 +747,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367SB",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0010,
@@ -103,7 +103,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) |
-@@ -753,6 +761,7 @@ static const struct rtl8365mb_chip_info
+@@ -754,6 +762,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367RB-VB",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0020,
@@ -111,7 +111,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) },
-@@ -762,6 +771,19 @@ static const struct rtl8365mb_chip_info
+@@ -763,6 +772,19 @@ static const struct rtl8365mb_chip_info
  		.jam_table = rtl8365mb_init_jam_8365mb_vc,
  		.jam_size = ARRAY_SIZE(rtl8365mb_init_jam_8365mb_vc),
  	},
@@ -131,7 +131,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  };
  
  enum rtl8365mb_stp_state {
-@@ -859,6 +881,13 @@ struct rtl8365mb {
+@@ -869,6 +891,13 @@ struct rtl8365mb {
  
  #define pcs_to_rtl8365mb(_pcs) container_of((_pcs), struct rtl8365mb, pcs)
  
@@ -145,7 +145,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  static int rtl8365mb_phy_poll_busy(struct realtek_priv *priv)
  {
  	u32 val;
-@@ -3264,7 +3293,11 @@ static int rtl8365mb_detect(struct realt
+@@ -3803,7 +3832,11 @@ static int rtl8365mb_detect(struct realt
  
  	dev_info(priv->dev, "found an %s switch\n", mb->chip_info->name);
  
