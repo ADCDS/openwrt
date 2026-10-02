@@ -180,18 +180,6 @@ nand_detach_ubi() {
 	fi
 }
 
-nand_upgrade_add_provisioning() {
-	local ubidev="$1"
-
-	[ "${UPGRADE_OPT_ADD_PROVISIONING:-0}" -gt 0 ] || return 0
-	[ -z "$(nand_find_volume $ubidev provisioning)" ] || return 0
-
-	ubimkvol /dev/$ubidev -N provisioning -s 131072 && return 0
-
-	echo "cannot create provisioning volume"
-	return 1
-}
-
 nand_upgrade_prepare_ubi() {
 	local rootfs_length="$1"
 	local rootfs_type="$2"
@@ -229,10 +217,16 @@ nand_upgrade_prepare_ubi() {
 	[ "$root_ubivol" ] && ubirmvol /dev/$root_ubidev -N "$CI_ROOTPART" || :
 	[ "$data_ubivol" ] && ubirmvol /dev/$data_ubidev -N rootfs_data || :
 
-	# A rootfs in UBIFS takes all the free space, so the provisioning
-	# volume has to exist before it
-	if [ "$rootfs_type" = "ubifs" ]; then
-		nand_upgrade_add_provisioning "$root_ubidev" || return 1
+	# create provisioning vol with the last volume ID, so the kernel and
+	# rootfs volumes keep their IDs; some devices hardcode them in root=
+	if [ "${UPGRADE_OPT_ADD_PROVISIONING:-0}" -gt 0 ]; then
+		[ -n "$(nand_find_volume $root_ubidev provisioning)" ] || {
+			local prov_id=$(( $(cat /sys/class/ubi/$root_ubidev/max_vol_count) - 1 ))
+			if ! ubimkvol /dev/$root_ubidev -N provisioning -n $prov_id -s 131072; then
+				echo "cannot create provisioning volume"
+				return 1
+			fi
+		}
 	fi
 
 	# create kernel vol
@@ -259,12 +253,6 @@ nand_upgrade_prepare_ubi() {
 
 	# create rootfs_data vol for non-ubifs rootfs
 	if [ "$rootfs_type" != "ubifs" ]; then
-		# The provisioning volume goes after the kernel and the rootfs,
-		# which then keep the volume ids they always had: many boards
-		# name the rootfs by number, root=/dev/ubiblock0_1, and wait for
-		# it forever when a new volume takes id 0
-		nand_upgrade_add_provisioning "$root_ubidev" || return 1
-
 		local rootfs_data_size_param="-m"
 		if [ -n "$rootfs_data_max" ]; then
 			rootfs_data_size_param="-s $rootfs_data_max"
