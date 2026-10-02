@@ -413,6 +413,7 @@ define Device/xiaomi_ax3000tv2
 	$(call Device/xiaomi_ipq50xx_ax_base)
 	DEVICE_MODEL := AX3000Tv2
 	DEVICE_DTS_CONFIG := config@mp03.3
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 ipq-wifi-xiaomi_ax3000tv2
 endef
 TARGET_DEVICES += xiaomi_ax3000tv2
 
