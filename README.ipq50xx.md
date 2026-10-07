@@ -71,6 +71,13 @@ image: a board that is not in official OpenWrt needs a plain OpenWrt image
 built from this tree first (Quick start below), and a board that is gets the
 official one. `sha256sums-<group>.txt` next to the images has the checksums.
 
+The Xiaomi Mi Router AX3000T v2 is the exception: its stock U-Boot only boots
+a freshly ubiformatted kernel volume, so it refuses an in-place sysupgrade and
+is installed and upgraded from `openwrt-qualcommax-ipq50xx-xiaomi_mi-router-ax3000t-v2-initramfs-factory.ubi`,
+in the `256m` group's release (steps in the commit that adds the board). That
+image is for installing only: it runs from RAM, so with Wi-Fi up it can run out
+of memory.
+
 Every image is built with the whole plane in: `nss-tools-dwmac`, firmware
 12.2-156, VLAN and PPPoE managers, ath11k with the NSS patches, plus `ip-full`
 and `iperf3` for checking it. Boards come in two groups, because the ath11k and
@@ -79,7 +86,7 @@ NSS memory profiles are a build-time choice for the whole image:
 | group | boards | memory profile |
 |---|---|---|
 | `std` | 512 MB and 1 GB boards (the release notes list them) | ath11k 1G, NSS medium |
-| `256m` | Cudy P5, TP-Link EX511 v2 | ath11k 256M, NSS low |
+| `256m` | Cudy P5, TP-Link EX511 v2, Xiaomi Mi Router AX3000T v2 | ath11k 256M, NSS low |
 
 The exact configuration of each group is in `.github/ci/ipq50xx/` (`common.config`
 + `<group>.config` + `kmods-extra.config`) and, for a given release, in the
@@ -265,7 +272,7 @@ A plain reboot is stock OpenWrt on the host stack. The `nss` service
 1. **Makes the CPU port speak plain 802.1Q.** On the `dsa` topology (the
    default, see *Topology*) the switch keeps its DSA driver and the service
    switches the conduit's tag protocol to the switch's tag_8021q tagger
-   (`qca-8021q`, `rtl8365mb-8021q`). On the trunk topology `qca8k` has done
+   (`qca-8021q`, `rtl8365mb-8021q`, `an8855-8021q`). On the trunk topology `qca8k` has done
    the hard bring-up (SerDes, clocks, uniphy) at boot; the service unbinds it
    and loads `qca8337-nss` with the VTU map from `nss.general.vtu`.
 2. Loads `qca-dwmac-nss` and `qca-nss-drv`. Both are inert at this point:
@@ -316,13 +323,36 @@ the switch driver bound and the ports as they are on a stock image -
 PPPoE ISP) as the WAN device. The service
 switches the conduit's tag protocol to the switch's tag_8021q tagger before
 netifd runs - `qca-8021q` for `qca8k` (QCA8337), `rtl8365mb-8021q` for
-`rtl8365mb` (RTL8367S) - so the switch talks to the CPU in plain 802.1Q,
-which the firmware parses, and after the arm `qca-dsa-nss` gives every port,
-bridge, VLAN of a VLAN-aware bridge and 802.1Q upper of a port a firmware
-VLAN interface so ECM can write rules for them.
+`rtl8365mb` (RTL8367S), `an8855-8021q` for the Airoha AN8855 - so the switch
+talks to the CPU in plain 802.1Q, which the firmware parses, and after the
+arm `qca-dsa-nss` gives every port, bridge, VLAN of a VLAN-aware bridge and
+802.1Q upper of a port a firmware VLAN interface so ECM can write rules for
+them.
 
-A board whose switch is driven by `qca8k` or `rtl8365mb` gets the `dsa`
-topology on first boot, and **nothing about the wiring is configured**: the
+What the VID cannot carry on the AN8855: a frame that a port of a bridge
+sends to the CPU, trapped link-local frames included (STP BPDUs, 802.1X,
+LLDP), arrives in the bridge's VLAN, so the host knows the bridge it came
+from but not the port. Per-port STP state, wired 802.1X and LLDP
+neighbours are therefore not reliable on bridged ports of this switch; a
+standalone port keeps its own VID and is not affected. Avoid loops through
+bridged AN8855 ports: STP still runs, but it cannot tell which port a BPDU
+came in on.
+
+Also on the AN8855 in this mode:
+
+- A bridge-wide `vlan_filtering` change is one switch transaction, undone as
+  a whole if a register write fails. Other changes are not transactional
+  across callbacks. If a port fails to leave VLAN filtering when it leaves a
+  bridge, the driver logs it and shuts the port until the filtering reset
+  that follows the leave finishes the job.
+- VID 0, which the 8021q layer adds to every port that comes up, is accepted
+  without touching the switch. Priority-tagged frames (VID 0 on the wire)
+  are untested.
+- Unknown unicast, multicast and broadcast floods include the CPU port, so the
+  host sees flooded traffic of every port.
+
+A board whose switch is driven by `qca8k`, `rtl8365mb` or `an8855` gets the
+`dsa` topology on first boot, and **nothing about the wiring is configured**: the
 switch stays with its driver, so ports, CPU port and VLANs are the kernel's,
 and the rest is read off the board at every boot - the GMACs from the nodes
 their netdevs sit on (`ethernet@39c00000` = GMAC0 = `phys_if 0`,
@@ -375,10 +405,10 @@ TP-Link Archer AX55 v1 (RTL8367S), with nothing in uci but the defaults and
 asks for `qcom,ath11k-fw-memory-mode = <1>` (the AX55, the Xiaomi AX6000 and
 others): wifili runs in that mode - measured on the AX55 and on two AX6000s -
 and the service only logs a warning; `nss.general.wifi_offload=0` keeps the
-radios on the host. Not yet: switches other than these two.
+radios on the host. Not yet: switches other than these three.
 
 **VLAN-aware bridges** (`bridge-vlan` sections, `vlan_filtering`) work on
-both taggers: the bridge's VLANs go into the switch as they are, PVID and
+all three taggers: the bridge's VLANs go into the switch as they are, PVID and
 untagged included, the CPU port is a tagged member of each, and the tagger
 hands a frame in one of them to the bridge by its VID (which of the bridge's
 ports it came from is not known - the same imprecise receive as for a
@@ -390,6 +420,8 @@ are not in the switch and do not count: an ordinary `br-lan` with its
 default PVID 1 can sit next to a VLAN-aware bridge that uses VID 1. They
 go into the switch when the bridge has `vlan_filtering` turned on, which is
 refused if one of them is taken by then, and leave it when it is turned off.
+On the AN8855, a port of a VLAN-unaware bridge forwards tagged frames
+between the bridge's ports as they are, as `mt7530` does.
 
 Flows through such a bridge are accelerated like the rest. `qca-dsa-nss`
 gives each VLAN of the bridge a firmware VLAN interface on the conduit (the
@@ -736,8 +768,9 @@ larger (2092 B) than the data frame size the host advertises (2048 B).
 
 ## 256 MB boards
 
-Two IPQ5018 boards on this branch have 256 MB - the TP-Link EX511 v2
-(IPQ5018 + QCN6122) and the Cudy P5 - and the rest 512 MB. The defaults
+Three IPQ5018 boards on this branch have 256 MB - the TP-Link EX511 v2
+(IPQ5018 + QCN6122), the Cudy P5 and the Xiaomi Mi Router AX3000T v2 - and the rest
+512 MB. The defaults
 tuned for 512 MB do not fit in 256: on the EX511 the first flashed build
 OOM-killed the AP daemon on a single iperf3 run. What it needed, all in the branch and measured on the board
 (2026-09-13) - and what the next 256 MB board will need too:
@@ -793,8 +826,9 @@ OOM-killed the AP daemon on a single iperf3 run. What it needed, all in the bran
     that the cache file is newer than the file you edited.
     `NSS_MEM_PROFILE_LOW` is not in this tree at all - it is a choice in
     the `qca-nss-drv` package of the feed, so a board has to be named in
-    both places - the EX511 v2 and the Cudy P5 are, in both. The firmware
-    version
+    both places - the EX511 v2 and the Cudy P5 are, in both; the AX3000T v2
+    is named here and in kuncy7/nss-packages#4, which is not merged yet. The
+    firmware version
   (`NSS_FIRMWARE_VERSION_12_2`) is still chosen by hand, as on every
   ipq50xx board. `qcom,ath11k-fw-memory-mode = <2>` on both radios is in
   the DTS.
